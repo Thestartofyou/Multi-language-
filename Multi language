@@ -1,0 +1,35 @@
+from flask import Flask, render_template, request
+from flask_socketio import SocketIO, send, emit
+from google.cloud import translate_v2 as translate
+import os
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+socketio = SocketIO(app)
+
+# Initialize the Google Cloud Translator client
+translator = translate.Client()
+
+@app.route('/')
+def index():
+    return render_template('chat.html')
+
+# Function to handle message translation
+def translate_message(message, target_language):
+    translated = translator.translate(message, target_language=target_language)
+    return translated['translatedText']
+
+# Handle new messages via WebSocket
+@socketio.on('message')
+def handle_message(data):
+    user_message = data['message']
+    user_language = data['language']
+    
+    # For simplicity, we assume messages are translated to English (you can change this logic)
+    translated_message = translate_message(user_message, target_language='en')
+
+    # Broadcast the translated message to all users in the chat
+    emit('message', {'message': translated_message}, broadcast=True)
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
